@@ -27,6 +27,19 @@
                 >
               </div>
               <br />
+              <div
+                class="p-b-10 flex flex-column align-content-start align-items-start gap-2"
+              >
+                <label for="username">Nombre de Usuario</label>
+                <InputText
+                  id="username"
+                  name="username"
+                  style="width: 100%"
+                  v-model="Username"
+                  aria-describedby="room-help"
+                />
+              </div>
+              <br />
               <Button label="Unirme" @click="onSubmitJoinRoom" />
             </form>
           </TabPanel>
@@ -48,6 +61,18 @@
                 >
               </div>
               <br />
+              <div
+                class="p-b-10 flex flex-column align-content-start align-items-start gap-2"
+              >
+                <label for="username">Nombre de Usuario</label>
+                <InputText
+                  id="username"
+                  name="username"
+                  style="width: 100%"
+                  v-model="Username"
+                  aria-describedby="room-help"
+                />
+              </div>
               <Button label="Crear Sala" @click="onSubmitNewRoom" />
             </form>
           </TabPanel>
@@ -59,51 +84,85 @@
 
 <script lang="ts">
 import { Options, Vue } from "vue-class-component";
+import { IRoom, IRoomResponse } from "../store/IRoomResponse";
+import { useStore } from "vuex";
+import { useToast } from "primevue/usetoast";
 
 @Options({
   components: {},
 })
 export default class HomeView extends Vue {
-  public URL = "";
+  public UserName = "";
   public RoomURL = "";
   public RoomName = "";
+
+  public toast = useToast();
+
+  mounted(): void {
+    const store = useStore();
+  }
+
   onSubmit() {
     console.log("Submit");
   }
-  onSubmitJoinRoom() {
-    var RoomURL = this.RoomURL;
-    const connection = new WebSocket("ws://localhost:7071");
-    connection.onmessage = function (event: MessageEvent): void {
-      const message = JSON.parse(event.data);
-      console.log("onmessage::");
-      console.log(message);
-    };
-    connection.onopen = function (event: Event): void {
-      const packet = JSON.stringify({ command: "RoomJoin", value: RoomURL });
-      connection.send(packet);
-    };
-  }
   onSubmitNewRoom() {
-    var RoomName = this.RoomName;
+    this.$store
+      .dispatch("newRoom", {
+        username: this.UserName,
+        roomname: this.RoomName,
+      })
+      .then((response: IRoom) => {
+        // Redirecto to
+        console.log(response.url);
+        this.toast.add({
+          severity: "success",
+          summary: "Room Created Succesfully",
+          detail: "Redirecting to " + response.url,
+          life: 3000,
+        });
+      })
+      .catch((error: string) => {
+        // Show Error
+        console.error(error);
+        this.toast.add({
+          severity: "error",
+          summary: "Error Creating New Room",
+          detail: error,
+          life: 3000,
+        });
+        console.error(error);
+      });
+  }
+  onSubmitJoinRoom() {
+    const match = /(?<=room\/)\w*/.exec(this.RoomURL);
+    const roomid = match ? match[0] : null;
+    this.$store
+      .dispatch("joinRoom", {
+        username: this.UserName,
+        roomurl: this.RoomURL,
+        roomid: roomid,
+      })
+      .then((response: IRoom) => {
+        // Redirecto to
+        this.$router.push("/game/room/" + response.id);
+        this.toast.add({
+          severity: "success",
+          summary: "Success Joining to Room",
+          detail: "Redirecting to " + response.url,
+          life: 3000,
+        });
+      })
+      .catch((error: string) => {
+        // Show Error
+        console.error(error);
+        this.toast.add({
+          severity: "error",
+          summary: "Error Joining Room",
+          detail: error,
+          life: 3000,
+        });
+      });
     console.log("onSubmitNewRoom");
-    const connection = new WebSocket("ws://localhost:7071");
-    connection.onmessage = function (event: MessageEvent): void {
-      const message = JSON.parse(event.data);
-      if (
-        message &&
-        message.command === "ERROR" &&
-        message.payload === "RoomNameAlreadyExists"
-      ) {
-        console.log(" NOMBRE REPETIDO");
-        connection.close();
-      }
-      console.log("onmessage::");
-      console.log(message);
-    };
-    connection.onopen = function (event: Event): void {
-      const packet = JSON.stringify({ command: "RoomCreate", value: RoomName });
-      connection.send(packet);
-    };
   }
 }
 </script>

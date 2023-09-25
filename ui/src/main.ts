@@ -110,6 +110,7 @@ import "primeflex/primeflex.css";
 const app = createApp(App);
 app.config.globalProperties.$filters = filters;
 app.use(PrimeVue);
+app.use(ToastService);
 app.use(store);
 app.use(router);
 

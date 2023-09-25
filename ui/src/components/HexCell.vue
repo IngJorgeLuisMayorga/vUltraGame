@@ -10,7 +10,7 @@
     xmlns:xlink="http://www.w3.org/1999/xlink"
   >
     <polygon
-      :style="{ fill: _color, 'stroke-width': '2', stroke: 'white' }"
+      :style="{ fill: pcolor, 'stroke-width': '2', stroke: 'white' }"
       :points="`${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y} ${p5.x},${p5.y} ${p6.x},${p6.y}`"
     />
     <text
@@ -48,7 +48,7 @@ export default class HexCell extends Vue {
   color!: string;
   colorHover!: string;
 
-  public _color = "black";
+  public pcolor = "black";
 
   p1 = { x: 0 - x0, y: d - y0 };
   p2 = { x: 1.5179030662710187 * d - x0, y: 0.12812396966699638 * d - y0 };
@@ -58,17 +58,17 @@ export default class HexCell extends Vue {
   p6 = { x: 0 - x0, y: 2.743686119353775 * d - y0 };
 
   onHover() {
-    this._color = this.colorHover;
+    this.pcolor = this.colorHover;
   }
   offHover() {
-    this._color = this.color;
+    this.pcolor = this.color;
   }
   onClick() {
     this.$emit("onClick", { x: this.x, y: this.y });
   }
 
   mounted() {
-    this._color = this.color;
+    this.pcolor = this.color;
   }
 }
 </script>

@@ -28,9 +28,13 @@
 
 <script lang="ts">
 import { onMounted } from "vue";
+import { Computed, useStore } from "vuex";
 import { Options, Vue } from "vue-class-component";
 import PlayerTitle from "@/components/PlayerTitle.vue";
 import HexBoard from "@/components/HexBoard.vue";
+import { ConnectingRoomPacket } from "../classes/packets/ConnectingRoom.packet";
+import { ConnectingRoomSuccesfullPacket } from "../classes/packets/ConnectingRoomSuccesfull.packet";
+import { useToast } from "primevue/usetoast";
 @Options({
   components: {
     PlayerTitle,
@@ -38,6 +42,9 @@ import HexBoard from "@/components/HexBoard.vue";
   },
 })
 export default class HomeView extends Vue {
+  public connection: any = null;
+
+  public store = useStore();
   public playerActive = 0;
 
   public players = [
@@ -71,27 +78,83 @@ export default class HomeView extends Vue {
     },
   ];
 
-  mounted() {
-    setInterval(() => {
-      const currentIndex = this.playerActive;
-      const currentPlayer = this.players[currentIndex];
+  public toast = useToast();
 
-      if (currentPlayer.timer > 2) {
-        this.players[currentIndex].timer -= 1;
-      } else {
-        const nextIndex =
-          currentIndex === this.players.length - 1 ? 0 : currentIndex + 1;
-        const nextPlayer = this.players[nextIndex];
+  get player() {
+    return { ...this.store.getters.player };
+  }
 
-        this.players[currentIndex].isActive = false;
-        this.players[currentIndex].timer = 60;
+  get room() {
+    return { ...this.store.getters.room };
+  }
 
-        this.players[nextIndex].isActive = true;
-        this.players[nextIndex].timer = 60;
+  async mounted() {
+    const roomId = this.$route.params.roomId;
+    const room = await this.store.dispatch("joinRoom", {
+      roomid: roomId,
+      username: this.player.name,
+    });
 
-        this.playerActive = nextIndex;
+    setTimeout(() => {
+      this.connection = new WebSocket("ws://localhost:7071");
+      this.connection.onopen = this.onopen;
+      this.connection.onclose = this.onclose;
+      this.connection.onmessage = this.onmessage;
+    }, 2500);
+
+    /*
+    console.log(" Room Id", roomId);
+    console.log(" player ");
+    console.log(this.player);
+    */
+  }
+
+  onopen(event: Event) {
+    const roomid = this.room.id;
+    const username = this.player.name;
+    const packet = new ConnectingRoomPacket({ roomid, username });
+    this.connection.send(packet.toRaw());
+  }
+  onclose(event: Event) {
+    console.log("Close WB Connection");
+  }
+  onmessage(event: MessageEvent) {
+    const message = JSON.parse(event.data);
+    const command = message.command;
+    switch (command) {
+      case "ROOM_JOINED_SUCCESFULL": {
+        const packet = new ConnectingRoomSuccesfullPacket(message.value);
+        if (!packet.payload) {
+          console.error(packet);
+          throw new Error(" No packet Payload here");
+        }
+        console.warn(message);
+        if (!packet.wait) {
+          this.toast.add({
+            severity: "success",
+            summary: "Un jugador se ha conectado, esperando que sean 4",
+            life: 3000,
+          });
+          return null;
+        }
+        this.store
+          .dispatch("startPlayer", packet.payload)
+          .then((response) => {
+            console.log(" ");
+            console.log(" START GAME!!!! ");
+            console.log(response);
+            console.log(" ");
+          })
+          .catch((error) => console.error(error));
+        break;
       }
-    }, 1000);
+      default: {
+        console.log("onmessage::");
+        console.log(message);
+        console.log(message.command);
+        console.log(message.command === "ROOM_JOINED_SUCCESFULL");
+      }
+    }
   }
 }
 
